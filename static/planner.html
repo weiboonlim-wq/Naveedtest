@@ -361,6 +361,19 @@
             document.getElementById('stat-unassigned').innerText = holdingCount;
         }
 
+                function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.delivery-card:not(.dragging)')];
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
         function initDragAndDrop() {
             const cards = document.querySelectorAll('.delivery-card');
             const containers = document.querySelectorAll('.cards-container');
@@ -402,7 +415,16 @@
 
                     if (oldTruck) oldTruck.deliveryIds = oldTruck.deliveryIds.filter(id => id !== deliveryId);
                     delivery.truckId = targetTruckId;
-                    newTruck.deliveryIds.push(deliveryId);
+                    
+                    const afterElement = getDragAfterElement(container, e.clientY);
+                    if (afterElement == null) {
+                        newTruck.deliveryIds.push(deliveryId);
+                    } else {
+                        const afterId = afterElement.dataset.id;
+                        const insertIndex = newTruck.deliveryIds.indexOf(afterId);
+                        newTruck.deliveryIds.splice(insertIndex, 0, deliveryId);
+                    }
+                    
                     render();
                 });
             });
