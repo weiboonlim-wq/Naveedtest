@@ -205,10 +205,10 @@
                 let items = [];
 
                 matchingLines.forEach(l => {
-                    const desc = String(l[1] || '') + " " + String(l[2] || '');
+                    const desc = String(l[3] || '') || String(l[2] || '');
                     if(desc.toLowerCase().includes('small parcel')) isSmallParcel = true;
                     if(desc.toLowerCase().includes('bos') || desc.toLowerCase().includes('built on site')) isBOS = true;
-                    items.push({ name: desc.substring(0,30), qty: l[4] || 1 });
+                    items.push({ name: desc, qty: l[4] || 1 });
                 });
 
                 let jobType = 'STANDARD';
