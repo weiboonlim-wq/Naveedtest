@@ -58,14 +58,31 @@
         .customer-name { font-weight: 700; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
         .time-badge { font-size: 0.6rem; padding: 1px 4px; border-radius: 3px; font-weight: 700; white-space: nowrap; background: #ecfdf5; color: #065f46; }
         .card-address { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 0.3rem; line-height: 1.1; }
-        .delivery-items-preview { max-height: 0; overflow: hidden; transition: max-height 0.2s ease; font-size: 0.65rem; color: var(--text-muted); background: #f8fafc; }
-        .delivery-card:hover .delivery-items-preview { max-height: 100px; margin-bottom: 0.5rem; padding: 0.4rem; border: 1px solid #f1f5f9; border-radius: 4px; }
+        .delivery-items-preview-OLD { max-height: 0; overflow: hidden; transition: max-height 0.2s ease; font-size: 0.65rem; color: var(--text-muted); background: #f8fafc; }
+        .delivery-card:hover .delivery-items-preview-OLD { max-height: 100px; margin-bottom: 0.5rem; padding: 0.4rem; border: 1px solid #f1f5f9; border-radius: 4px; }
         .preview-item { display: flex; justify-content: space-between; padding: 1px 0; }
         .card-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 0.4rem; border-top: 1px solid #f1f5f9; }
         .drop-target { background: #cbd5e1 !important; outline: 2px dashed var(--primary); }
         .drag-over-warning { outline-color: var(--danger) !important; background: #fee2e2 !important; }
         .over-capacity { outline-color: var(--danger) !important; background: #fef2f2 !important; }
-    </style>
+    
+        .delivery-items-preview {
+            max-height: 58px; /* Shows about 3 items */
+            overflow-y: auto;
+            transition: none;
+            margin-bottom: 0.5rem;
+            padding: 0.4rem;
+            border: 1px solid #f1f5f9;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            background: #f8fafc;
+            display: block;
+        }
+        .delivery-items-preview::-webkit-scrollbar { width: 4px; }
+        .delivery-items-preview::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+</style>
 </head>
 <body>
 
@@ -392,13 +409,16 @@
         }
 
         function exportSchedule() {
-            if(state.deliveries.length === 0) return alert("Nothing to export!");
-            let csvContent = "data:text/csv;charset=utf-8,Truck,Type,Delivery ID,Postal,Address,Items\\n";
+            let csvContent = "data:text/csv;charset=utf-8,Delivery Team,Sequence,Delivery ID,Rule,Customer,Address,Postal,Preferred Time,Scheduled Time,Items\n";
             state.trucks.forEach(t => {
-                t.deliveryIds.forEach(did => {
+                t.deliveryIds.forEach((did, index) => {
                     const d = state.deliveries.find(x => x.id === did);
-                    const itemStr = d.items.map(i => i.name).join("; ");
-                    csvContent += `"${t.name}","${t.type}","${d.id}","${d.postal}","${d.address}","${itemStr}"\\n`;
+                    if (d) {
+                        const itemsStr = d.items.map(i => i.name + ' (x' + i.qty + ')').join(' | ').replace(/"/g, '""');
+                        const cCustomer = (d.customer || '').toString().replace(/"/g, '""');
+                        const cAddress = (d.address || '').toString().replace(/"/g, '""');
+                        csvContent += `"${t.name}",${index + 1},"${d.id}","${d.rule}","${cCustomer}","${cAddress}",${d.postal},"${d.preferredTime || ''}","${d.scheduledTime || ''}","${itemsStr}"\n`;
+                    }
                 });
             });
             const encodedUri = encodeURI(csvContent);
