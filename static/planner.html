@@ -20,11 +20,6 @@
             --warning: #f59e0b;
             --danger: #ef4444;
             --accent: #8b5cf6;
-            var(--truck-width): 250px; 
-            var(--tw-morning): #ecfdf5; 
-            var(--tw-afternoon): #eff6ff; 
-            var(--tw-evening): #fff7ed; 
-            var(--tw-night): #faf5ff; 
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; font-size: 0.82rem; }
         body { background-color: var(--bg-main); color: var(--text-main); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
@@ -99,13 +94,13 @@
             <i data-lucide="upload"></i> 1. Upload Shipment Header
         </button>
         <input type="file" id="file-header" accept=".csv, .xlsx" style="display: none;" onchange="handleFileUpload(event, 'header')">
-        <span id="lbl-header" style="font-size: 0.7rem; color: var(--text-muted);">No file</span>
+        <span id="lbl-header" style="font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; display: inline-block;">No file</span>
 
         <button class="btn btn-primary" onclick="document.getElementById('file-lines').click()">
             <i data-lucide="upload"></i> 2. Upload Shipment Lines
         </button>
         <input type="file" id="file-lines" accept=".csv, .xlsx" style="display: none;" onchange="handleFileUpload(event, 'lines')">
-        <span id="lbl-lines" style="font-size: 0.7rem; color: var(--text-muted);">No file</span>
+        <span id="lbl-lines" style="font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; display: inline-block;">No file</span>
 
         <div style="width: 1px; height: 20px; background: var(--border); margin: 0 10px;"></div>
 
@@ -129,11 +124,13 @@
             <div style="padding: 2rem; color: var(--text-muted); text-align: center; width: 100%;">
                 <h2>Upload your Shipment Header & Lines files to begin.</h2>
                 <p>Ensure your CSVs match the required Column A (Header) and Column G (Lines) linkage.</p>
+                <p style="margin-top:1rem;font-size:0.8rem;">Small Parcels and BOS (Built on site) will be grouped into dedicated trucks.<br>Standard deliveries will be capped at 17 jobs per truck.</p>
             </div>
         </div>
     </main>
 
     <script>
+        lucide.createIcons();
         let rawHeaders = [];
         let rawLines = [];
         let state = { trucks: [], deliveries: [], holdingAreaId: 'HOLDING_BIN' };
@@ -149,10 +146,11 @@
                 const workbook = XLSX.read(data, {type: 'array'});
                 const firstSheetName = workbook.SheetNames[0];
                 const sheet = workbook.Sheets[firstSheetName];
-                const json = XLSX.utils.sheet_to_json(sheet, {header: 1}); // Read as array of arrays
+                const json = XLSX.utils.sheet_to_json(sheet, {header: 1});
                 
                 if(type === 'header') rawHeaders = json;
                 if(type === 'lines') rawLines = json;
+                console.log(`Loaded ${type} - ${json.length} rows`);
             };
             reader.readAsArrayBuffer(file);
         }
@@ -166,35 +164,34 @@
             state.deliveries = [];
             state.trucks = [];
             
-            // Generate Holding Bin
             state.trucks.push({
                 id: state.holdingAreaId, name: 'Holding Area', primarySector: '--', type: 'HOLDING', isHolding: true, deliveryIds: []
             });
 
-            // Process Data
             const headerRows = rawHeaders.slice(1);
             const lineRows = rawLines.slice(1);
 
             headerRows.forEach((row, index) => {
                 if(!row || !row[0]) return;
-                const docNo = String(row[0]).trim(); // Column A
-                const address = row[2] || 'No Address'; // Column C
-                const postal = String(row[5] || '000000'); // Column F (Ship-to Post Code)
+                const docNo = String(row[0]).trim(); // Col A
+                const address = String(row[2] || 'No Address'); // Col C
+                const postal = String(row[5] || '000000'); // Col F
                 const sector = postal.substring(0, 2);
                 
-                // Find all lines for this document (Column G is index 6)
+                // Match Column G (index 6) in Lines to Column A (index 0) in Header
                 const matchingLines = lineRows.filter(l => l && String(l[6]).trim() === docNo);
+                
+                if(matchingLines.length === 0) return; // Skip if no items
                 
                 let isSmallParcel = false;
                 let isBOS = false;
                 let items = [];
 
                 matchingLines.forEach(l => {
-                    // Assuming Column B (index 1) or C (index 2) is Item Description
                     const desc = String(l[1] || '') + " " + String(l[2] || '');
                     if(desc.toLowerCase().includes('small parcel')) isSmallParcel = true;
                     if(desc.toLowerCase().includes('bos') || desc.toLowerCase().includes('built on site')) isBOS = true;
-                    items.push({ name: desc.substring(0,30), qty: l[4] || 1 }); // Assuming qty is col E (4)
+                    items.push({ name: desc.substring(0,30), qty: l[4] || 1 });
                 });
 
                 let jobType = 'STANDARD';
@@ -203,37 +200,32 @@
 
                 state.deliveries.push({
                     id: docNo,
-                    customer: `Customer ${index+1}`, // Mock customer if not available
+                    customer: `Customer ${index+1}`,
                     address: address,
                     postal: postal,
                     sector: sector,
                     jobType: jobType,
-                    items: items.length ? items : [{name: 'Unknown Item', qty: 1}],
+                    items: items,
                     truckId: null,
                     timeWindow: "Anytime"
                 });
             });
 
-            // ----------------------------------------------------
-            // AI AUTO-GROUPING ALGORITHM (Optimized Constraints)
-            // ----------------------------------------------------
+            // Auto-Group Algorithm
             const numTrucks = parseInt(document.getElementById('truck-count').value) || 30;
             const MAX_JOBS = 17;
 
-            // Separate deliveries
             const bosJobs = state.deliveries.filter(d => d.jobType === 'BOS');
             const spJobs = state.deliveries.filter(d => d.jobType === 'SMALL_PARCEL');
             const stdJobs = state.deliveries.filter(d => d.jobType === 'STANDARD');
 
             let currentTruckIndex = 1;
 
-            // Helper to allocate jobs to dedicated trucks
             function allocateToTrucks(jobs, typeLabel) {
                 let currentBatch = [];
                 for(let i=0; i<jobs.length; i++) {
                     currentBatch.push(jobs[i]);
                     if(currentBatch.length === MAX_JOBS || i === jobs.length - 1) {
-                        // Create truck
                         const tId = `T-${currentTruckIndex++}`;
                         state.trucks.push({
                             id: tId, name: `Truck ${currentTruckIndex-1} (${typeLabel})`, 
@@ -248,12 +240,9 @@
                 }
             }
 
-            // Allocate Dedicated Trucks
             allocateToTrucks(bosJobs, 'BOS');
             allocateToTrucks(spJobs, 'SMALL PARCEL');
 
-            // Allocate Standard Trucks (clustered by sector)
-            // Sort standard jobs by postal sector to keep them geographically close
             stdJobs.sort((a,b) => a.sector.localeCompare(b.sector));
             
             let stdBatch = [];
@@ -273,7 +262,6 @@
                 }
             }
 
-            // Any remaining trucks to reach the user's requested count
             while(currentTruckIndex <= numTrucks) {
                 state.trucks.push({
                     id: `T-${currentTruckIndex}`, name: `Truck ${currentTruckIndex}`, 
@@ -368,7 +356,7 @@
                 card.addEventListener('dragend', () => {
                     card.classList.remove('dragging');
                     document.querySelectorAll('.truck-column').forEach(c => c.classList.remove('drop-target', 'drag-over-warning', 'over-capacity'));
-                    render(); // Re-render to update health bars after drop
+                    render();
                 });
             });
 
@@ -380,7 +368,7 @@
                     
                     const t = state.trucks.find(tru => tru.id === truckCol.dataset.truckId);
                     if (!t.isHolding && t.deliveryIds.length >= 17) {
-                        truckCol.classList.add('drag-over-warning'); // Warn over 17 capacity
+                        truckCol.classList.add('drag-over-warning');
                     }
                 });
                 container.addEventListener('dragleave', (e) => {
