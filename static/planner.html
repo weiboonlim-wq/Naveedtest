@@ -6,6 +6,7 @@
     <title>LogiRoute Pro | Dispatcher Control Center</title>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root {
             --primary: #2563eb;
@@ -19,575 +20,269 @@
             --warning: #f59e0b;
             --danger: #ef4444;
             --accent: #8b5cf6;
-            
-            /* Column sizing optimized for 50-inch touch screens */
-            --truck-width: 250px; 
-            
-            /* Time Window Colors */
-            --tw-morning: #ecfdf5; 
-            --tw-afternoon: #eff6ff; 
-            --tw-evening: #fff7ed; 
-            --tw-night: #faf5ff; 
+            var(--truck-width): 250px; 
+            var(--tw-morning): #ecfdf5; 
+            var(--tw-afternoon): #eff6ff; 
+            var(--tw-evening): #fff7ed; 
+            var(--tw-night): #faf5ff; 
         }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            font-size: 0.82rem; /* Globally smaller for high density on large displays */
-        }
-
-        body {
-            background-color: var(--bg-main);
-            color: var(--text-main);
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        /* --- Header Section --- */
-        header {
-            background: white;
-            border-bottom: 1px solid var(--border);
-            padding: 0.5rem 1.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 100;
-        }
-
-        .brand h1 {
-            font-size: 1.1rem;
-            font-weight: 800;
-            color: var(--primary);
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-        }
-
-        .stats-bar {
-            display: flex;
-            gap: 1.5rem;
-        }
-
-        .stat-item {
-            display: flex;
-            flex-direction: column;
-            border-left: 1px solid var(--border);
-            padding-left: 1rem;
-        }
-
-        .stat-value {
-            font-weight: 700;
-            font-size: 1rem;
-        }
-
-        .stat-label {
-            font-size: 0.65rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        /* --- Control Bar --- */
-        .control-bar {
-            background: white;
-            padding: 0.5rem 1.5rem;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            gap: 0.75rem;
-            align-items: center;
-            z-index: 90;
-        }
-
-        .search-container {
-            position: relative;
-            flex-grow: 1;
-            max-width: 300px;
-        }
-
-        .search-container input {
-            width: 100%;
-            padding: 0.4rem 1rem 0.4rem 2.2rem;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-        }
-
-        .search-container i {
-            position: absolute;
-            left: 0.7rem;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-muted);
-            width: 14px;
-        }
-
-        .btn {
-            padding: 0.4rem 0.8rem;
-            border-radius: 6px;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-            transition: all 0.2s;
-            border: 1px solid var(--border);
-            background: white;
-            white-space: nowrap;
-        }
-
-        .btn-primary {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
-
-        /* --- Main Planner Area --- */
-        main {
-            flex-grow: 1;
-            display: flex;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .planner-scroll {
-            flex-grow: 1;
-            overflow-x: auto;
-            overflow-y: hidden;
-            display: flex;
-            padding: 1rem;
-            gap: 1rem;
-            align-items: flex-start;
-        }
-
-        /* --- Truck Column --- */
-        .truck-column {
-            min-width: var(--truck-width);
-            max-width: var(--truck-width);
-            background: #f1f5f9;
-            border-radius: 8px;
-            display: flex;
-            flex-direction: column;
-            max-height: 100%;
-            border: 1px solid var(--border);
-            transition: background 0.2s;
-        }
-
-        /* Sticky/Frozen Holding Column - Critical for Touch TV use */
-        .truck-column.holding-area {
-            position: sticky;
-            left: 0;
-            z-index: 50;
-            background: #e2e8f0;
-            border-right: 3px solid var(--primary);
-            box-shadow: 10px 0 15px -10px rgba(0,0,0,0.1);
-        }
-
-        .truck-header {
-            padding: 0.75rem;
-            background: white;
-            border-radius: 8px 8px 0 0;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .holding-area .truck-header {
-            background: var(--primary);
-            color: white;
-        }
-
-        .truck-info {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.25rem;
-        }
-
-        .truck-name {
-            font-weight: 800;
-            font-size: 0.9rem;
-        }
-
-        .truck-zone-badge {
-            font-size: 0.65rem;
-            background: #e2e8f0;
-            padding: 1px 6px;
-            border-radius: 4px;
-            font-weight: 700;
-            color: var(--text-muted);
-        }
-
-        .holding-area .truck-zone-badge {
-            background: rgba(255,255,255,0.2);
-            color: white;
-        }
-
-        .truck-meta {
-            display: flex;
-            gap: 0.75rem;
-            font-size: 0.7rem;
-            color: var(--text-muted);
-        }
-
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; font-size: 0.82rem; }
+        body { background-color: var(--bg-main); color: var(--text-main); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        header { background: white; border-bottom: 1px solid var(--border); padding: 0.5rem 1.5rem; display: flex; justify-content: space-between; align-items: center; z-index: 100; }
+        .brand h1 { font-size: 1.1rem; font-weight: 800; color: var(--primary); display: flex; align-items: center; gap: 0.4rem; }
+        .stats-bar { display: flex; gap: 1.5rem; }
+        .stat-item { display: flex; flex-direction: column; border-left: 1px solid var(--border); padding-left: 1rem; }
+        .stat-value { font-weight: 700; font-size: 1rem; }
+        .stat-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .control-bar { background: white; padding: 0.5rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; gap: 0.75rem; align-items: center; z-index: 90; flex-wrap: wrap; }
+        .search-container { position: relative; flex-grow: 1; max-width: 250px; }
+        .search-container input { width: 100%; padding: 0.4rem 1rem 0.4rem 2.2rem; border: 1px solid var(--border); border-radius: 6px; }
+        .search-container i { position: absolute; left: 0.7rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); width: 14px; }
+        .btn { padding: 0.4rem 0.8rem; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; transition: all 0.2s; border: 1px solid var(--border); background: white; white-space: nowrap; }
+        .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
+        .btn-success { background: var(--success); color: white; border-color: var(--success); }
+        .form-group { display: flex; align-items: center; gap: 0.5rem; }
+        .form-group input { padding: 0.3rem; border: 1px solid var(--border); border-radius: 4px; width: 60px; text-align: center; }
+        main { flex-grow: 1; display: flex; overflow: hidden; position: relative; }
+        .planner-scroll { flex-grow: 1; overflow-x: auto; overflow-y: hidden; display: flex; padding: 1rem; gap: 1rem; align-items: flex-start; }
+        .truck-column { min-width: 250px; max-width: 250px; background: #f1f5f9; border-radius: 8px; display: flex; flex-direction: column; max-height: 100%; border: 1px solid var(--border); transition: background 0.2s; }
+        .holding-area { position: sticky; left: 0; z-index: 50; background: #e2e8f0; border-right: 3px solid var(--primary); box-shadow: 10px 0 15px -10px rgba(0,0,0,0.1); }
+        .truck-header { padding: 0.75rem; background: white; border-radius: 8px 8px 0 0; border-bottom: 1px solid var(--border); }
+        .holding-area .truck-header { background: var(--primary); color: white; }
+        .truck-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; }
+        .truck-name { font-weight: 800; font-size: 0.9rem; }
+        .truck-zone-badge { font-size: 0.65rem; background: #e2e8f0; padding: 1px 6px; border-radius: 4px; font-weight: 700; color: var(--text-muted); }
+        .holding-area .truck-zone-badge { background: rgba(255,255,255,0.2); color: white; }
+        .truck-meta { display: flex; gap: 0.75rem; font-size: 0.7rem; color: var(--text-muted); }
         .holding-area .truck-meta { color: rgba(255,255,255,0.8); }
-
-        .health-bar {
-            height: 3px;
-            width: 100%;
-            background: #e2e8f0;
-            border-radius: 2px;
-            margin-top: 0.5rem;
-            overflow: hidden;
-        }
-
-        /* --- Delivery Cards --- */
-        .cards-container {
-            padding: 0.5rem;
-            overflow-y: auto;
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            min-height: 200px;
-        }
-
-        .delivery-card {
-            background: white;
-            border-radius: 6px;
-            padding: 0.6rem;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-            cursor: grab;
-            border: 1px solid transparent;
-            transition: all 0.15s ease;
-            position: relative;
-        }
-
-        .delivery-card:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            border-color: var(--primary);
-            transform: translateY(-1px);
-        }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 0.3rem;
-        }
-
-        .customer-name {
-            font-weight: 700;
-            font-size: 0.85rem;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 120px;
-        }
-
-        .time-badge {
-            font-size: 0.6rem;
-            padding: 1px 4px;
-            border-radius: 3px;
-            font-weight: 700;
-            white-space: nowrap;
-        }
-
-        .card-address {
-            font-size: 0.7rem;
-            color: var(--text-muted);
-            margin-bottom: 0.3rem;
-            line-height: 1.1;
-        }
-
-        /* Item List revealed on Hover */
-        .delivery-items-preview {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.2s ease;
-            font-size: 0.65rem;
-            color: var(--text-muted);
-            background: #f8fafc;
-        }
-
-        .delivery-card:hover .delivery-items-preview {
-            max-height: 100px;
-            margin-bottom: 0.5rem;
-            padding: 0.4rem;
-            border: 1px solid #f1f5f9;
-            border-radius: 4px;
-        }
-
-        .preview-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 1px 0;
-        }
-
-        .card-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding-top: 0.4rem;
-            border-top: 1px solid #f1f5f9;
-        }
-
-        /* --- Details Panel --- */
-        .details-panel {
-            width: 350px;
-            background: white;
-            border-left: 1px solid var(--border);
-            height: 100%;
-            position: absolute;
-            right: -350px;
-            top: 0;
-            transition: right 0.3s ease;
-            z-index: 200;
-            padding: 1.5rem;
-            box-shadow: -4px 0 15px rgba(0,0,0,0.1);
-        }
-
-        .details-panel.open { right: 0; }
-
-        /* Helpers */
-        .tw-9-12 { background: var(--tw-morning); color: #065f46; }
-        .tw-12-3 { background: var(--tw-afternoon); color: #1e40af; }
-        .tw-3-6 { background: var(--tw-evening); color: #9a3412; }
-        .tw-6-9 { background: var(--tw-night); color: #5b21b6; }
-
+        .health-bar { height: 3px; width: 100%; background: #e2e8f0; border-radius: 2px; margin-top: 0.5rem; overflow: hidden; }
+        .cards-container { padding: 0.5rem; overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; gap: 0.5rem; min-height: 200px; }
+        .delivery-card { background: white; border-radius: 6px; padding: 0.6rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); cursor: grab; border: 1px solid transparent; transition: all 0.15s ease; position: relative; }
+        .delivery-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-color: var(--primary); transform: translateY(-1px); }
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.3rem; }
+        .customer-name { font-weight: 700; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+        .time-badge { font-size: 0.6rem; padding: 1px 4px; border-radius: 3px; font-weight: 700; white-space: nowrap; background: #ecfdf5; color: #065f46; }
+        .card-address { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 0.3rem; line-height: 1.1; }
+        .delivery-items-preview { max-height: 0; overflow: hidden; transition: max-height 0.2s ease; font-size: 0.65rem; color: var(--text-muted); background: #f8fafc; }
+        .delivery-card:hover .delivery-items-preview { max-height: 100px; margin-bottom: 0.5rem; padding: 0.4rem; border: 1px solid #f1f5f9; border-radius: 4px; }
+        .preview-item { display: flex; justify-content: space-between; padding: 1px 0; }
+        .card-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 0.4rem; border-top: 1px solid #f1f5f9; }
         .drop-target { background: #cbd5e1 !important; outline: 2px dashed var(--primary); }
         .drag-over-warning { outline-color: var(--danger) !important; background: #fee2e2 !important; }
-
-        #loading-overlay {
-            position: fixed; inset: 0; background: rgba(255,255,255,0.8);
-            display: none; justify-content: center; align-items: center;
-            z-index: 1000; font-weight: 600; color: var(--primary);
-        }
-
-        .spinner {
-            width: 30px; height: 30px; border: 3px solid #f3f3f3;
-            border-top: 3px solid var(--primary); border-radius: 50%;
-            animation: spin 1s linear infinite; margin-right: 1rem;
-        }
-
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .over-capacity { outline-color: var(--danger) !important; background: #fef2f2 !important; }
     </style>
 </head>
 <body>
 
-    <div id="loading-overlay">
-        <div class="spinner"></div>
-        <div id="loading-text">Optimizing UI for Large Display...</div>
-    </div>
-
     <header>
         <div class="brand">
-            <h1><i data-lucide="layout-dashboard"></i> LogiRoute Pro <small style="font-weight: 400; font-size: 0.6rem; opacity: 0.7;">HD TOUCH MODE</small></h1>
+            <h1><i data-lucide="layout-dashboard"></i> LogiRoute Pro</h1>
         </div>
         <div class="stats-bar">
             <div class="stat-item">
-                <span class="stat-label">Trucks</span>
-                <span class="stat-value" id="stat-trucks">30</span>
+                <span class="stat-label">Max Trucks Available</span>
+                <input type="number" id="truck-count" value="30" class="btn" style="width: 70px; padding: 0.2rem; margin-top: 0.2rem;">
             </div>
             <div class="stat-item">
-                <span class="stat-label">Jobs</span>
-                <span class="stat-value" id="stat-deliveries">450</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Health</span>
-                <span class="stat-value" id="stat-health" style="color: var(--success);">94%</span>
+                <span class="stat-label">Total Jobs</span>
+                <span class="stat-value" id="stat-deliveries">0</span>
             </div>
             <div class="stat-item">
                 <span class="stat-label">Holding Area</span>
                 <span class="stat-value" id="stat-unassigned" style="color: var(--danger);">0</span>
             </div>
         </div>
-        <div>
-            <input type="date" id="planner-date" class="btn" value="2023-10-27" style="font-size: 0.75rem;">
-        </div>
     </header>
 
     <div class="control-bar">
-        <div class="search-container">
-            <i data-lucide="search"></i>
-            <input type="text" id="search-input" placeholder="Quick search customer, S(postal), or address...">
-        </div>
-        
-        
-        <button class="btn" id="btn-import" onclick="document.getElementById('file-upload').click()">
-            <i data-lucide="upload" style="width:14px"></i> Import CSV
+        <button class="btn btn-primary" onclick="document.getElementById('file-header').click()">
+            <i data-lucide="upload"></i> 1. Upload Shipment Header
         </button>
-        <input type="file" id="file-upload" accept=".csv, .xlsx" style="display: none;" onchange="alert('File selected! (Backend parsing will be linked here once you upload the real file)')">
-        <button class="btn" id="btn-export" onclick="exportSchedule()">
-            <i data-lucide="download" style="width:14px"></i> Export Plan
+        <input type="file" id="file-header" accept=".csv, .xlsx" style="display: none;" onchange="handleFileUpload(event, 'header')">
+        <span id="lbl-header" style="font-size: 0.7rem; color: var(--text-muted);">No file</span>
+
+        <button class="btn btn-primary" onclick="document.getElementById('file-lines').click()">
+            <i data-lucide="upload"></i> 2. Upload Shipment Lines
+        </button>
+        <input type="file" id="file-lines" accept=".csv, .xlsx" style="display: none;" onchange="handleFileUpload(event, 'lines')">
+        <span id="lbl-lines" style="font-size: 0.7rem; color: var(--text-muted);">No file</span>
+
+        <div style="width: 1px; height: 20px; background: var(--border); margin: 0 10px;"></div>
+
+        <button class="btn btn-success" id="btn-auto-plan" onclick="processAndPlan()">
+            <i data-lucide="zap"></i> Optimize Routes
         </button>
 
-        <button class="btn btn-primary" id="btn-auto-plan">
-            <i data-lucide="zap" style="width:14px"></i> AI Auto-Group
-        </button>
-        
-        <button class="btn" id="btn-reset">
-            <i data-lucide="refresh-ccw" style="width:14px"></i> Reset Plan
+        <button class="btn" onclick="exportSchedule()">
+            <i data-lucide="download"></i> Export Final
         </button>
 
         <div style="flex-grow: 1"></div>
-
-        <select class="btn" id="filter-time">
-            <option value="">All Preferred Timings</option>
-            <option value="9am to 12pm">9am to 12pm</option>
-            <option value="12pm to 3pm">12pm to 3pm</option>
-            <option value="3pm to 6pm">3pm to 6pm</option>
-            <option value="6pm to 9pm">6pm to 9pm</option>
-        </select>
+        <div class="search-container">
+            <i data-lucide="search"></i>
+            <input type="text" id="search-input" placeholder="Search customer, postal...">
+        </div>
     </div>
 
     <main>
         <div class="planner-scroll" id="planner-grid">
-            <!-- Content will be injected by JavaScript -->
-        </div>
-
-        <div class="details-panel" id="details-panel">
-            <i data-lucide="x" class="close-details" id="close-details" style="cursor:pointer"></i>
-            <div class="details-header">
-                <p id="det-id" style="font-size: 0.6rem; color: var(--text-muted);"></p>
-                <h2 id="det-name" style="font-size: 1.2rem; margin-bottom: 0.5rem;">Customer Name</h2>
-                <div id="det-time" class="time-badge" style="display: inline-block; margin-bottom: 1rem;">9am to 12pm</div>
-            </div>
-            <div style="margin-top: 1rem;">
-                <label class="stat-label">Delivery Address</label>
-                <p id="det-address" style="font-weight: 600;"></p>
-            </div>
-            <div class="item-list">
-                <label class="stat-label">Order Items</label>
-                <div id="det-items-container"></div>
-            </div>
-            <div style="margin-top: 2rem;">
-                <label class="stat-label">Dispatcher Notes</label>
-                <textarea class="btn" style="width: 100%; height: 80px; text-align: left;" placeholder="Add driver instructions..."></textarea>
+            <div style="padding: 2rem; color: var(--text-muted); text-align: center; width: 100%;">
+                <h2>Upload your Shipment Header & Lines files to begin.</h2>
+                <p>Ensure your CSVs match the required Column A (Header) and Column G (Lines) linkage.</p>
             </div>
         </div>
     </main>
 
     <script>
-        /**
-         * LogiRoute Pro Logic
-         * 1. Data Mocking: 30 Trucks + 450 Deliveries with Singaporean Names.
-         * 2. Layout: First column is a sticky "Holding Area" for unassigned/review jobs.
-         * 3. Grouping: AI assigns by 2-digit postal sector proximity.
-         * 4. Interaction: Optimized for Touch TVs (small gaps, large visual feedback, hover previews).
-         */
+        let rawHeaders = [];
+        let rawLines = [];
+        let state = { trucks: [], deliveries: [], holdingAreaId: 'HOLDING_BIN' };
 
-        const CONFIG = {
-            numTrucks: 30,
-            deliveriesPerTruck: 15,
-            timeWindows: ["9am to 12pm", "12pm to 3pm", "3pm to 6pm", "6pm to 9pm"],
-            products: ["Dyson Airwrap", "Philips Air Fryer", "Sennheiser HD 600", "Xiaomi Monitor 34\"", "Logitech MX Master", "ErgoTune Supreme Chair", "Nespresso Capsules", "Apple iPad Air", "Bose QC45", "Prism+ W240", "Sony WH-1000XM5", "Razer DeathAdder", "Keychron K2 Keyboard", "Oculus Quest 2", "Secretlab Titan", "Samsung T7 SSD"],
-            postalSectors: Array.from({length: 82}, (_, i) => (i + 1).toString().padStart(2, '0')),
-            sgNames: [
-                "Tan Wei Ting", "Muhammad Syazwan", "Priya Varshini", "Loke Kah Seng", 
-                "Siti Nurhaliza", "Arjun Ramanathan", "Chen Meiling", "David Lim", 
-                "Nurul Huda", "Vikram Singh", "Lim Hwee Hua", "Ahmad Ibrahim", 
-                "Jessica Wong", "Karthik Raja", "Zoe Tay", "Benjamin Kheng",
-                "Fandi Ahmad", "Joseph Schooling", "Stefanie Sun", "JJ Lin"
-            ]
-        };
+        function handleFileUpload(e, type) {
+            const file = e.target.files[0];
+            if (!file) return;
+            document.getElementById(`lbl-${type}`).innerText = file.name;
+            
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                const data = new Uint8Array(evt.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const firstSheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[firstSheetName];
+                const json = XLSX.utils.sheet_to_json(sheet, {header: 1}); // Read as array of arrays
+                
+                if(type === 'header') rawHeaders = json;
+                if(type === 'lines') rawLines = json;
+            };
+            reader.readAsArrayBuffer(file);
+        }
 
-        let state = {
-            trucks: [],
-            deliveries: [],
-            holdingAreaId: 'HOLDING_BIN'
-        };
-
-        function generateData() {
-            state.trucks = [];
-            state.deliveries = [];
-
-            // 1. Create the sticky Holding Area
-            state.trucks.push({
-                id: state.holdingAreaId,
-                name: 'Holding Area',
-                primarySector: '--',
-                isHolding: true,
-                deliveryIds: []
-            });
-
-            // 2. Generate 30 Trucks
-            for (let i = 0; i < CONFIG.numTrucks; i++) {
-                const startSectorIdx = Math.floor((i / CONFIG.numTrucks) * CONFIG.postalSectors.length);
-                state.trucks.push({
-                    id: `T-${i + 101}`,
-                    name: `Truck ${i + 1}`,
-                    primarySector: CONFIG.postalSectors[startSectorIdx],
-                    deliveryIds: []
-                });
+        function processAndPlan() {
+            if(rawHeaders.length === 0 || rawLines.length === 0) {
+                alert("Please upload both Header and Lines files.");
+                return;
             }
 
-            const streets = ["North Bridge Rd", "Orchard Blvd", "Jurong West St 42", "Tampines Ave 5", "Pasir Ris Dr 3", "Clementi Ave 2", "Woodlands Sq", "Ang Mo Kio Ave 10", "Serangoon Way", "Bukit Timah Rd"];
+            state.deliveries = [];
+            state.trucks = [];
+            
+            // Generate Holding Bin
+            state.trucks.push({
+                id: state.holdingAreaId, name: 'Holding Area', primarySector: '--', type: 'HOLDING', isHolding: true, deliveryIds: []
+            });
 
-            // 3. Generate 450 Deliveries
-            for (let i = 0; i < CONFIG.numTrucks * CONFIG.deliveriesPerTruck; i++) {
-                const sector = CONFIG.postalSectors[Math.floor(Math.random() * CONFIG.postalSectors.length)];
-                const orderItems = [];
-                const count = Math.floor(Math.random() * 3) + 1;
-                for(let j=0; j<count; j++) {
-                    orderItems.push({ 
-                        name: CONFIG.products[Math.floor(Math.random() * CONFIG.products.length)], 
-                        qty: Math.floor(Math.random() * 2) + 1 
-                    });
-                }
+            // Process Data
+            const headerRows = rawHeaders.slice(1);
+            const lineRows = rawLines.slice(1);
+
+            headerRows.forEach((row, index) => {
+                if(!row || !row[0]) return;
+                const docNo = String(row[0]).trim(); // Column A
+                const address = row[2] || 'No Address'; // Column C
+                const postal = String(row[5] || '000000'); // Column F (Ship-to Post Code)
+                const sector = postal.substring(0, 2);
+                
+                // Find all lines for this document (Column G is index 6)
+                const matchingLines = lineRows.filter(l => l && String(l[6]).trim() === docNo);
+                
+                let isSmallParcel = false;
+                let isBOS = false;
+                let items = [];
+
+                matchingLines.forEach(l => {
+                    // Assuming Column B (index 1) or C (index 2) is Item Description
+                    const desc = String(l[1] || '') + " " + String(l[2] || '');
+                    if(desc.toLowerCase().includes('small parcel')) isSmallParcel = true;
+                    if(desc.toLowerCase().includes('bos') || desc.toLowerCase().includes('built on site')) isBOS = true;
+                    items.push({ name: desc.substring(0,30), qty: l[4] || 1 }); // Assuming qty is col E (4)
+                });
+
+                let jobType = 'STANDARD';
+                if(isSmallParcel) jobType = 'SMALL_PARCEL';
+                if(isBOS) jobType = 'BOS';
 
                 state.deliveries.push({
-                    id: `ORD-${20000 + i}`,
-                    customer: CONFIG.sgNames[Math.floor(Math.random() * CONFIG.sgNames.length)],
-                    address: `${Math.floor(Math.random() * 500 + 1)} ${streets[Math.floor(Math.random() * streets.length)]}`,
-                    postal: sector + Math.floor(Math.random() * 9000 + 1000).toString(),
+                    id: docNo,
+                    customer: `Customer ${index+1}`, // Mock customer if not available
+                    address: address,
+                    postal: postal,
                     sector: sector,
-                    timeWindow: CONFIG.timeWindows[Math.floor(Math.random() * CONFIG.timeWindows.length)],
-                    items: orderItems,
-                    truckId: null
+                    jobType: jobType,
+                    items: items.length ? items : [{name: 'Unknown Item', qty: 1}],
+                    truckId: null,
+                    timeWindow: "Anytime"
                 });
+            });
+
+            // ----------------------------------------------------
+            // AI AUTO-GROUPING ALGORITHM (Optimized Constraints)
+            // ----------------------------------------------------
+            const numTrucks = parseInt(document.getElementById('truck-count').value) || 30;
+            const MAX_JOBS = 17;
+
+            // Separate deliveries
+            const bosJobs = state.deliveries.filter(d => d.jobType === 'BOS');
+            const spJobs = state.deliveries.filter(d => d.jobType === 'SMALL_PARCEL');
+            const stdJobs = state.deliveries.filter(d => d.jobType === 'STANDARD');
+
+            let currentTruckIndex = 1;
+
+            // Helper to allocate jobs to dedicated trucks
+            function allocateToTrucks(jobs, typeLabel) {
+                let currentBatch = [];
+                for(let i=0; i<jobs.length; i++) {
+                    currentBatch.push(jobs[i]);
+                    if(currentBatch.length === MAX_JOBS || i === jobs.length - 1) {
+                        // Create truck
+                        const tId = `T-${currentTruckIndex++}`;
+                        state.trucks.push({
+                            id: tId, name: `Truck ${currentTruckIndex-1} (${typeLabel})`, 
+                            primarySector: currentBatch[0] ? currentBatch[0].sector : 'MIX',
+                            type: typeLabel,
+                            isHolding: false,
+                            deliveryIds: currentBatch.map(d => d.id)
+                        });
+                        currentBatch.forEach(d => d.truckId = tId);
+                        currentBatch = [];
+                    }
+                }
             }
-        }
 
-        function autoPlan() {
-            // Logic: Group deliveries to the truck with the nearest primary zone
-            state.trucks.forEach(t => t.deliveryIds = []);
+            // Allocate Dedicated Trucks
+            allocateToTrucks(bosJobs, 'BOS');
+            allocateToTrucks(spJobs, 'SMALL PARCEL');
+
+            // Allocate Standard Trucks (clustered by sector)
+            // Sort standard jobs by postal sector to keep them geographically close
+            stdJobs.sort((a,b) => a.sector.localeCompare(b.sector));
             
-            state.deliveries.forEach(d => {
-                let bestTruck = state.trucks.find(t => !t.isHolding);
-                let minDiff = 100;
-                state.trucks.forEach(t => {
-                    if (t.isHolding) return;
-                    const diff = Math.abs(parseInt(t.primarySector) - parseInt(d.sector));
-                    if (diff < minDiff) { 
-                        minDiff = diff; 
-                        bestTruck = t; 
-                    }
-                });
-                d.truckId = bestTruck.id;
-                bestTruck.deliveryIds.push(d.id);
-            });
-            render();
-        }
+            let stdBatch = [];
+            for(let i=0; i<stdJobs.length; i++) {
+                stdBatch.push(stdJobs[i]);
+                if(stdBatch.length === MAX_JOBS || i === stdJobs.length - 1) {
+                    const tId = `T-${currentTruckIndex++}`;
+                    state.trucks.push({
+                        id: tId, name: `Truck ${currentTruckIndex-1}`, 
+                        primarySector: stdBatch[0].sector,
+                        type: 'STANDARD',
+                        isHolding: false,
+                        deliveryIds: stdBatch.map(d => d.id)
+                    });
+                    stdBatch.forEach(d => d.truckId = tId);
+                    stdBatch = [];
+                }
+            }
 
-        
-        function exportSchedule() {
-            let csvContent = "data:text/csv;charset=utf-8,Truck Name,Delivery ID,Customer,Address,Postal,Time Window\n";
-            state.trucks.forEach(t => {
-                t.deliveryIds.forEach(did => {
-                    const d = state.deliveries.find(x => x.id === did);
-                    if (d) {
-                        csvContent += `"${t.name}",${d.id},"${d.customer}","${d.address}",${d.postal},"${d.timeWindow}"\n`;
-                    }
+            // Any remaining trucks to reach the user's requested count
+            while(currentTruckIndex <= numTrucks) {
+                state.trucks.push({
+                    id: `T-${currentTruckIndex}`, name: `Truck ${currentTruckIndex}`, 
+                    primarySector: '--', type: 'STANDARD', isHolding: false, deliveryIds: []
                 });
-            });
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "planned_schedule.csv");
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
+                currentTruckIndex++;
+            }
+
+            render();
         }
 
         function render() {
@@ -602,10 +297,10 @@
                 
                 let healthPercent = 100;
                 let healthColor = 'var(--success)';
+                const isOverCap = truckDeliveries.length > 17;
 
                 if (!truck.isHolding) {
-                    const crossZoneCount = truckDeliveries.filter(d => d.sector !== truck.primarySector).length;
-                    healthPercent = Math.max(10, 100 - (crossZoneCount * 5) - (Math.max(0, truckDeliveries.length - 18) * 10));
+                    healthPercent = Math.max(10, 100 - (isOverCap ? 50 : 0));
                     if (healthPercent < 80) healthColor = 'var(--warning)';
                     if (healthPercent < 50) healthColor = 'var(--danger)';
                 }
@@ -614,11 +309,10 @@
                     <div class="truck-header">
                         <div class="truck-info">
                             <span class="truck-name">${truck.name}</span>
-                            <span class="truck-zone-badge">${truck.isHolding ? 'TEMP BIN' : 'Zone ' + truck.primarySector}</span>
+                            <span class="truck-zone-badge">${truck.type}</span>
                         </div>
                         <div class="truck-meta">
-                            <span><i data-lucide="package" style="width:10px"></i> ${truckDeliveries.length} Jobs</span>
-                            ${!truck.isHolding ? `<span><i data-lucide="activity" style="width:10px"></i> ${healthPercent}%</span>` : ''}
+                            <span style="color: ${isOverCap ? 'red' : 'inherit'}"><i data-lucide="package" style="width:10px"></i> ${truckDeliveries.length}/17 Jobs</span>
                         </div>
                         ${!truck.isHolding ? `
                             <div class="health-bar">
@@ -626,7 +320,7 @@
                             </div>
                         ` : ''}
                     </div>
-                    <div class="cards-container" id="container-${truck.id}">
+                    <div class="cards-container ${isOverCap ? 'over-capacity' : ''}" id="container-${truck.id}">
                         ${truckDeliveries.map(d => renderCard(d, truck)).join('')}
                     </div>
                 `;
@@ -639,38 +333,18 @@
         }
 
         function renderCard(d, truck) {
-            const isCrossZone = !truck.isHolding && d.sector !== truck.primarySector;
-            let twClass = 'tw-9-12';
-            if(d.timeWindow.includes("12pm to 3pm")) twClass = 'tw-12-3';
-            if(d.timeWindow.includes("3pm to 6pm")) twClass = 'tw-3-6';
-            if(d.timeWindow.includes("6pm to 9pm")) twClass = 'tw-6-9';
-
             return `
-                <div class="delivery-card" draggable="true" data-id="${d.id}" id="card-${d.id}">
+                <div class="delivery-card" draggable="true" data-id="${d.id}">
                     <div class="card-header">
-                        <span class="customer-name">${d.customer}</span>
-                        <span class="time-badge ${twClass}">${d.timeWindow}</span>
+                        <span class="customer-name" title="${d.id}">${d.id}</span>
+                        <span class="time-badge">${d.jobType}</span>
                     </div>
                     <div class="card-address">S(${d.postal}) • ${d.address}</div>
-                    
-                    <!-- Products shown on hover -->
                     <div class="delivery-items-preview">
-                        ${d.items.map(i => `
-                            <div class="preview-item">
-                                <span>${i.name}</span>
-                                <span style="font-weight: 700">x${i.qty}</span>
-                            </div>
-                        `).join('')}
+                        ${d.items.map(i => `<div class="preview-item"><span>${i.name}</span><strong>x${i.qty}</strong></div>`).join('')}
                     </div>
-
                     <div class="card-footer">
-                        <div class="items-summary"><i data-lucide="box" style="width:10px"></i> ${d.items.length} types</div>
-                        ${!truck.isHolding ? `
-                            <div class="status-indicator ${isCrossZone ? 'status-cross' : 'status-fit'}">
-                                <i data-lucide="${isCrossZone ? 'alert-circle' : 'check'}" style="width:10px"></i>
-                                ${isCrossZone ? 'Cross-zone' : ''}
-                            </div>
-                        ` : ''}
+                        <div class="items-summary"><i data-lucide="box" style="width:10px"></i> ${d.items.length} items</div>
                     </div>
                 </div>
             `;
@@ -693,9 +367,9 @@
                 });
                 card.addEventListener('dragend', () => {
                     card.classList.remove('dragging');
-                    document.querySelectorAll('.truck-column').forEach(c => c.classList.remove('drop-target', 'drag-over-warning'));
+                    document.querySelectorAll('.truck-column').forEach(c => c.classList.remove('drop-target', 'drag-over-warning', 'over-capacity'));
+                    render(); // Re-render to update health bars after drop
                 });
-                card.addEventListener('click', () => showDetails(card.dataset.id));
             });
 
             containers.forEach(container => {
@@ -704,100 +378,49 @@
                     const truckCol = container.closest('.truck-column');
                     truckCol.classList.add('drop-target');
                     
-                    const draggingCardId = document.querySelector('.dragging').dataset.id;
-                    const d = state.deliveries.find(del => del.id === draggingCardId);
                     const t = state.trucks.find(tru => tru.id === truckCol.dataset.truckId);
-                    
-                    if (!t.isHolding && d.sector !== t.primarySector) {
-                        truckCol.classList.add('drag-over-warning');
+                    if (!t.isHolding && t.deliveryIds.length >= 17) {
+                        truckCol.classList.add('drag-over-warning'); // Warn over 17 capacity
                     }
                 });
                 container.addEventListener('dragleave', (e) => {
-                    const truckCol = container.closest('.truck-column');
-                    truckCol.classList.remove('drop-target', 'drag-over-warning');
+                    container.closest('.truck-column').classList.remove('drop-target', 'drag-over-warning');
                 });
                 container.addEventListener('drop', (e) => {
                     e.preventDefault();
                     const deliveryId = e.dataTransfer.getData('text/plain');
                     const targetTruckId = container.closest('.truck-column').dataset.truckId;
-                    moveDelivery(deliveryId, targetTruckId);
+                    
+                    const delivery = state.deliveries.find(d => d.id === deliveryId);
+                    const oldTruck = state.trucks.find(t => t.id === delivery.truckId);
+                    const newTruck = state.trucks.find(t => t.id === targetTruckId);
+
+                    if (oldTruck) oldTruck.deliveryIds = oldTruck.deliveryIds.filter(id => id !== deliveryId);
+                    delivery.truckId = targetTruckId;
+                    newTruck.deliveryIds.push(deliveryId);
+                    render();
                 });
             });
         }
 
-        function moveDelivery(deliveryId, targetTruckId) {
-            const delivery = state.deliveries.find(d => d.id === deliveryId);
-            const oldTruck = state.trucks.find(t => t.id === delivery.truckId);
-            const newTruck = state.trucks.find(t => t.id === targetTruckId);
-
-            if (oldTruck) oldTruck.deliveryIds = oldTruck.deliveryIds.filter(id => id !== deliveryId);
-            delivery.truckId = targetTruckId;
-            newTruck.deliveryIds.push(deliveryId);
-            render();
-        }
-
-        function showDetails(id) {
-            const d = state.deliveries.find(del => del.id === id);
-            document.getElementById('det-id').innerText = d.id;
-            document.getElementById('det-name').innerText = d.customer;
-            document.getElementById('det-address').innerText = d.address + ", S(" + d.postal + ")";
-            document.getElementById('det-items-container').innerHTML = d.items.map(i => `
-                <div class="item-row">
-                    <span>${i.name}</span>
-                    <strong>x${i.qty}</strong>
-                </div>
-            `).join('');
-            
-            const timeEl = document.getElementById('det-time');
-            timeEl.innerText = d.timeWindow;
-            timeEl.className = 'time-badge';
-            let twClass = 'tw-9-12';
-            if(d.timeWindow.includes("12pm to 3pm")) twClass = 'tw-12-3';
-            if(d.timeWindow.includes("3pm to 6pm")) twClass = 'tw-3-6';
-            if(d.timeWindow.includes("6pm to 9pm")) twClass = 'tw-6-9';
-            timeEl.classList.add(twClass);
-
-            document.getElementById('details-panel').classList.add('open');
-        }
-
-        // Global Event Handlers
-        document.getElementById('close-details').onclick = () => document.getElementById('details-panel').classList.remove('open');
-        
-        document.getElementById('btn-auto-plan').onclick = () => {
-            const l = document.getElementById('loading-overlay');
-            l.style.display = 'flex';
-            setTimeout(() => { autoPlan(); l.style.display = 'none'; }, 600);
-        };
-        
-        document.getElementById('btn-reset').onclick = () => {
-            if(confirm("Regenerate all mock data and reset the plan?")) {
-                generateData();
-                autoPlan();
-            }
-        };
-        
-        document.getElementById('search-input').oninput = (e) => {
-            const term = e.target.value.toLowerCase();
-            document.querySelectorAll('.delivery-card').forEach(card => {
-                const d = state.deliveries.find(del => del.id === card.dataset.id);
-                const match = (d.customer + d.postal + d.address).toLowerCase().includes(term);
-                card.style.display = match ? 'block' : 'none';
+        function exportSchedule() {
+            if(state.deliveries.length === 0) return alert("Nothing to export!");
+            let csvContent = "data:text/csv;charset=utf-8,Truck,Type,Delivery ID,Postal,Address,Items\\n";
+            state.trucks.forEach(t => {
+                t.deliveryIds.forEach(did => {
+                    const d = state.deliveries.find(x => x.id === did);
+                    const itemStr = d.items.map(i => i.name).join("; ");
+                    csvContent += `"${t.name}","${t.type}","${d.id}","${d.postal}","${d.address}","${itemStr}"\\n`;
+                });
             });
-        };
-
-        document.getElementById('filter-time').onchange = (e) => {
-            const val = e.target.value;
-            document.querySelectorAll('.delivery-card').forEach(card => {
-                const d = state.deliveries.find(del => del.id === card.dataset.id);
-                card.style.display = (!val || d.timeWindow === val) ? 'block' : 'none';
-            });
-        };
-
-        // Initialize App
-        window.onload = () => {
-            generateData();
-            autoPlan();
-        };
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "optimized_schedule.csv");
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        }
     </script>
 </body>
 </html>
