@@ -374,6 +374,40 @@
             }, { offset: Number.NEGATIVE_INFINITY }).element;
         }
 
+        
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.delivery-card:not(.dragging)')];
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        function recalculateTimes() {
+            state.trucks.forEach(t => {
+                if (t.isHolding) return;
+                let currentMins = 9 * 60 + 30; // 9:30 AM
+                t.deliveryIds.forEach((did, index) => {
+                    const d = state.deliveries.find(x => x.id === did);
+                    if(d) {
+                        d.sequence = index + 1;
+                        let h = Math.floor(currentMins / 60);
+                        let m = currentMins % 60;
+                        let ampm = h >= 12 ? 'PM' : 'AM';
+                        let hStr = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+                        let mStr = m < 10 ? '0' + m : m;
+                        d.scheduledTime = `${hStr}:${mStr} ${ampm}`;
+                        currentMins += 30;
+                    }
+                });
+            });
+        }
+
         function initDragAndDrop() {
             const cards = document.querySelectorAll('.delivery-card');
             const containers = document.querySelectorAll('.cards-container');
