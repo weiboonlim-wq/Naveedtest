@@ -41,7 +41,7 @@
         main { flex-grow: 1; display: flex; overflow: hidden; position: relative; }
         .planner-scroll { flex-grow: 1; overflow-x: auto; overflow-y: hidden; display: flex; padding: 1rem; gap: 1rem; align-items: flex-start; }
         .truck-column { min-width: 250px; max-width: 250px; background: #f1f5f9; border-radius: 8px; display: flex; flex-direction: column; max-height: 100%; border: 1px solid var(--border); transition: background 0.2s; }
-        .holding-area { position: sticky; left: 0; z-index: 50; background: #e2e8f0; border-right: 3px solid var(--primary); box-shadow: 10px 0 15px -10px rgba(0,0,0,0.1); }
+        .holding-area { background: #ffffff; border: 2px solid var(--primary); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
         .truck-header { padding: 0.75rem; background: white; border-radius: 8px 8px 0 0; border-bottom: 1px solid var(--border); }
         .holding-area .truck-header { background: var(--primary); color: white; }
         .truck-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; }
@@ -92,18 +92,37 @@
         </div>
         <div class="stats-bar">
             <div class="stat-item">
-                <span class="stat-label">Max Trucks Available</span>
-                <input type="number" id="truck-count" value="30" class="btn" style="width: 70px; padding: 0.2rem; margin-top: 0.2rem;">
+                <span class="stat-label">Trucks</span>
+                <input type="number" id="truck-count" value="30" class="btn" style="width: 50px; padding: 0.1rem; margin-top: 0.1rem;">
             </div>
             <div class="stat-item">
-                <span class="stat-label">Total Jobs</span>
-                <span class="stat-value" id="stat-deliveries">0</span>
+                <span class="stat-label">Shift Start/End</span>
+                <div style="display:flex; gap: 0.2rem; align-items:center; margin-top: 0.1rem;">
+                    <input type="time" id="shift-start" value="09:00" class="btn" style="padding: 0.1rem;">
+                    <input type="time" id="shift-end" value="18:00" class="btn" style="padding: 0.1rem;">
+                </div>
             </div>
             <div class="stat-item">
-                <span class="stat-label">Holding Area</span>
-                <span class="stat-value" id="stat-unassigned" style="color: var(--danger);">0</span>
+                <span class="stat-label">BOS / SP / STD Mins</span>
+                <div style="display:flex; gap: 0.2rem; align-items:center; margin-top: 0.1rem;">
+                    <input type="number" id="min-bos" value="60" title="BOS" class="btn" style="width: 40px; padding: 0.1rem;">
+                    <input type="number" id="min-sp" value="20" title="Small Parcel" class="btn" style="width: 40px; padding: 0.1rem;">
+                    <input type="number" id="min-std" value="30" title="Standard" class="btn" style="width: 40px; padding: 0.1rem;">
+                </div>
+            </div>
+            <div class="stat-item" style="min-width: 140px;">
+                <span class="stat-label" style="display:flex; justify-content:space-between; margin-bottom: 0.1rem;">
+                    <span>Geo</span>
+                    <span>Time</span>
+                </span>
+                <input type="range" id="opt-slider" min="0" max="100" value="50" style="width: 100%;">
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Total / Hold</span>
+                <div class="stat-value" style="font-size: 0.8rem;"><span id="stat-deliveries">0</span> / <span id="stat-unassigned" style="color: var(--danger);">0</span></div>
             </div>
         </div>
+            
     </header>
 
     <div class="control-bar">
@@ -136,9 +155,10 @@
         </div>
     </div>
 
-    <main>
-        <div class="planner-scroll" id="planner-grid">
-            <div style="padding: 2rem; color: var(--text-muted); text-align: center; width: 100%;">
+    <main style="display: flex; overflow: hidden; background: var(--bg-main);">
+        <div id="holding-area-container" style="display: none; padding: 1rem; border-right: 5px solid var(--primary); background: #f1f5f9; align-items: flex-start; z-index: 100; box-shadow: 4px 0 10px rgba(0,0,0,0.1);"></div>
+        <div class="planner-scroll" id="planner-grid" style="flex-grow: 1; display: flex; overflow-x: auto; align-items: flex-start; padding: 1rem; gap: 1rem;">
+            <div id="welcome-msg" style="padding: 2rem; color: var(--text-muted); text-align: center; width: 100%;">
                 <h2>Upload your Shipment Header & Lines files to begin.</h2>
                 <p>Ensure your CSVs match the required Column A (Header) and Column G (Lines) linkage.</p>
                 <p style="margin-top:1rem;font-size:0.8rem;">Small Parcels and BOS (Built on site) will be grouped into dedicated trucks.<br>Standard deliveries will be capped at 17 jobs per truck.</p>
@@ -147,10 +167,51 @@
     </main>
 
     <script>
+
+        window.onerror = function(msg, url, lineNo, columnNo, error) { alert("JS Error: " + msg + "\nLine: " + lineNo); return false; };
         lucide.createIcons();
         let rawHeaders = [];
         let rawLines = [];
-        let state = { trucks: [], deliveries: [], holdingAreaId: 'HOLDING_BIN' };
+        let state = { trucks: [], deliveries: [], holdingAreaId: 'HOLDING_BIN', warehouseCoord: [1.3006, 103.7766], warehouseSector: '12' };
+                const sectorCoords = {
+                    "01":[1.285,103.853],"02":[1.285,103.853],"03":[1.285,103.853],"04":[1.285,103.853],"05":[1.285,103.853],"06":[1.285,103.853],
+                    "07":[1.273,103.845],"08":[1.273,103.845],
+                    "09":[1.270,103.819],"10":[1.270,103.819],
+                    "11":[1.291,103.784],"12":[1.291,103.784],"13":[1.291,103.784],
+                    "14":[1.288,103.821],"15":[1.288,103.821],"16":[1.288,103.821],
+                    "17":[1.298,103.851],"18":[1.298,103.851],"19":[1.298,103.851],
+                    "20":[1.309,103.850],"21":[1.309,103.850],
+                    "22":[1.305,103.836],"23":[1.305,103.836],
+                    "24":[1.326,103.837],"25":[1.326,103.837],"26":[1.326,103.837],"27":[1.326,103.837],
+                    "28":[1.328,103.855],"29":[1.328,103.855],"30":[1.328,103.855],
+                    "31":[1.334,103.874],"32":[1.334,103.874],"33":[1.334,103.874],
+                    "34":[1.322,103.885],"35":[1.322,103.885],"36":[1.322,103.885],"37":[1.322,103.885],
+                    "38":[1.321,103.903],"39":[1.321,103.903],"40":[1.321,103.903],"41":[1.321,103.903],
+                    "42":[1.305,103.905],"43":[1.305,103.905],"44":[1.305,103.905],"45":[1.305,103.905],
+                    "46":[1.319,103.940],"47":[1.319,103.940],"48":[1.319,103.940],
+                    "49":[1.355,103.980],"50":[1.355,103.980],
+                    "51":[1.353,103.945],"52":[1.353,103.945],
+                    "53":[1.365,103.887],"54":[1.365,103.887],"55":[1.365,103.887],
+                    "56":[1.361,103.848],"57":[1.361,103.848],
+                    "58":[1.341,103.778],"59":[1.341,103.778],
+                    "60":[1.328,103.711],"61":[1.328,103.711],"62":[1.328,103.711],"63":[1.328,103.711],"64":[1.328,103.711],
+                    "65":[1.370,103.763],"66":[1.370,103.763],"67":[1.370,103.763],"68":[1.370,103.763],
+                    "69":[1.411,103.708],"70":[1.411,103.708],"71":[1.411,103.708],
+                    "72":[1.433,103.765],"73":[1.433,103.765],
+                    "75":[1.430,103.832],"76":[1.430,103.832],
+                    "77":[1.391,103.820],"78":[1.391,103.820],
+                    "79":[1.394,103.875],"80":[1.394,103.875],
+                    "81":[1.416,103.980]
+                };
+
+                function getDist(s1, s2) {
+                    const p1 = sectorCoords[s1] || [1.35, 103.8];
+                    const p2 = sectorCoords[s2] || [1.35, 103.8];
+                    const dy = (p1[0] - p2[0]) * 111319;
+                    const dx = (p1[1] - p2[1]) * 111319 * Math.cos(p1[0] * Math.PI / 180);
+                    return Math.sqrt(dx * dx + dy * dy); // Distance in meters
+                }
+
 
         function handleFileUpload(e, type) {
             const file = e.target.files[0];
@@ -159,225 +220,426 @@
             
             const reader = new FileReader();
             reader.onload = (evt) => {
-                const data = new Uint8Array(evt.target.result);
-                const workbook = XLSX.read(data, {type: 'array'});
-                const firstSheetName = workbook.SheetNames[0];
-                const sheet = workbook.Sheets[firstSheetName];
-                const json = XLSX.utils.sheet_to_json(sheet, {header: 1});
-                
-                if(type === 'header') rawHeaders = json;
-                if(type === 'lines') rawLines = json;
-                console.log(`Loaded ${type} - ${json.length} rows`);
+                try {
+                    const data = new Uint8Array(evt.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const firstSheetName = workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[firstSheetName];
+                    const json = XLSX.utils.sheet_to_json(sheet, {header: 1});
+                    
+                    if(type === 'header') rawHeaders = json;
+                    if(type === 'lines') rawLines = json;
+                    console.log(`Loaded ${type} - ${json.length} rows`);
+                } catch(e) {
+                    alert("Error parsing file " + type + ": " + e.message);
+                }
             };
             reader.readAsArrayBuffer(file);
         }
 
         function processAndPlan() {
-            if(rawHeaders.length === 0 || rawLines.length === 0) {
-                alert("Please upload both Header and Lines files.");
-                return;
-            }
+            try {
+                if(rawHeaders.length === 0 || rawLines.length === 0) {
+                    alert("Please upload both Header and Lines files. Headers: " + rawHeaders.length + ", Lines: " + rawLines.length);
+                    return;
+                }
 
-            state.deliveries = [];
-            state.trucks = [];
-            
-            state.trucks.push({
-                id: state.holdingAreaId, name: 'Holding Area', primarySector: '--', type: 'HOLDING', isHolding: true, deliveryIds: []
-            });
-
-            const headerRows = rawHeaders.slice(1);
-            const lineRows = rawLines.slice(1);
-
-            headerRows.forEach((row, index) => {
-                if(!row || !row[0]) return;
-                const docNo = String(row[0]).trim(); // Col A
-                const address = String(row[2] || 'No Address'); // Col C
-                const postal = String(row[5] || '000000'); // Col F
-                const sector = postal.substring(0, 2);
+                state.deliveries = [];
+                state.trucks = [];
                 
-                // Match Column G (index 6) in Lines to Column A (index 0) in Header
-                const matchingLines = lineRows.filter(l => l && String(l[6]).trim() === docNo);
-                
-                if(matchingLines.length === 0) return; // Skip if no items
-                
-                let isSmallParcel = false;
-                let isBOS = false;
-                let items = [];
-
-                matchingLines.forEach(l => {
-                    const desc = String(l[3] || '') || String(l[2] || '');
-                    if(desc.toLowerCase().includes('small parcel')) isSmallParcel = true;
-                    if(desc.toLowerCase().includes('bos') || desc.toLowerCase().includes('built on site')) isBOS = true;
-                    items.push({ name: desc, qty: l[4] || 1 });
+                state.trucks.push({
+                    id: state.holdingAreaId, name: 'Holding Area', primarySector: '--', type: 'HOLDING', isHolding: true, deliveryIds: []
                 });
 
-                let jobType = 'STANDARD';
-                if(isSmallParcel) jobType = 'SMALL_PARCEL';
-                if(isBOS) jobType = 'BOS';
+                const headerRows = rawHeaders.slice(1);
+                const lineRows = rawLines.slice(1);
 
-                state.deliveries.push({
-                    id: docNo,
-                    customer: `Customer ${index+1}`,
-                    address: address,
-                    postal: postal,
-                    sector: sector,
-                    jobType: jobType,
-                    items: items,
-                    truckId: null,
-                    timeWindow: "Anytime"
+                headerRows.forEach((row, index) => {
+                    if(!row || !row[0]) return;
+                    const docNo = String(row[0] || '').trim();
+                    const address = String(row[2] || 'No Address');
+                    const postal = String(row[5] || '000000');
+                    const sector = postal.substring(0, 2);
+                    
+                    const matchingLines = (lineRows || []).filter(l => l && String(l[6]).trim() === docNo);
+                    // Keep even if no lines found
+                    
+                    let isSmallParcel = false;
+                    let isBOS = false;
+                    let items = [];
+
+                    matchingLines.forEach(l => {
+                        const desc = String(l[3] || '') || String(l[2] || '');
+                        if(desc.toLowerCase().includes('small parcel')) isSmallParcel = true;
+                        if(desc.toLowerCase().includes('bos') || desc.toLowerCase().includes('built on site')) isBOS = true;
+                        items.push({ name: desc, qty: l[4] || 1 });
+                    });
+
+                    function excelTime(val) {
+                        if (!val && val !== 0) return '';
+                        let d = val * 24;
+                        let h = Math.floor(d);
+                        let m = Math.round((d - h) * 60);
+                        if(m === 60) { m = 0; h++; }
+                        let ampm = h >= 12 ? 'pm' : 'am';
+                        let h12 = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+                        if (m === 0) return h12 + ampm;
+                        let mStr = m < 10 ? '0' + m : m;
+                        return h12 + ':' + mStr + ampm;
+                    }
+                    
+                    let sTime = excelTime(row[11]);
+                    let eTime = excelTime(row[12]);
+                    let prefTime = (sTime && eTime) ? (sTime + ' to ' + eTime) : (sTime || eTime || '');
+
+                    let jobType = row[9] ? String(row[9]).trim() : 'General';
+                    let algJobType = 'STANDARD';
+                    let searchStr = (jobType + ' ' + matchingLines.map(l => l[3] || '').join(' ')).toUpperCase();
+                    if (searchStr.indexOf('BOS') > -1 || searchStr.indexOf('BUILT ON SITE') > -1) algJobType = 'BOS';
+                    else if (searchStr.indexOf('SMALL') > -1 || searchStr.indexOf('PARCEL') > -1) algJobType = 'SMALL_PARCEL';
+                    else algJobType = 'STANDARD';
+
+                    state.deliveries.push({
+                        id: docNo + '_' + index, // Ensure unique ID for the algorithm
+                        docNo: docNo,           // Store actual FTDO for display/export
+                        customer: docNo,
+                        address: address,
+                        postal: postal,
+                        sector: sector,
+                        jobType: algJobType,
+                        displayType: jobType,
+                        preferredTime: prefTime,
+                        rawStart: row[11] ? parseFloat(row[11]) * 24 : 0,
+                        rawEnd: row[12] ? parseFloat(row[12]) * 24 : 0,
+                        items: items,
+                        truckId: null,
+                        timeWindow: ""
+                    });
                 });
-            });
 
-            // Auto-Group Algorithm
-            const numTrucks = parseInt(document.getElementById('truck-count').value) || 30;
-            const MAX_JOBS = 17;
+                const numTrucks = parseInt(document.getElementById('truck-count').value) || 30;
 
-            const bosJobs = state.deliveries.filter(d => d.jobType === 'BOS');
-            const spJobs = state.deliveries.filter(d => d.jobType === 'SMALL_PARCEL');
-            const stdJobs = state.deliveries.filter(d => d.jobType === 'STANDARD');
+                const bosJobs = state.deliveries.filter(d => d.jobType === 'BOS');
+                const spJobs = state.deliveries.filter(d => d.jobType === 'SMALL_PARCEL');
+                const stdJobs = state.deliveries.filter(d => d.jobType === 'STANDARD');
 
-            let currentTruckIndex = 1;
+                const sortJobs = (a, b) => {
+                    if (a.sector !== b.sector) return a.sector.localeCompare(b.sector);
+                    if (a.rawStart !== b.rawStart) return a.rawStart - b.rawStart;
+                    return a.postal.localeCompare(b.postal);
+                };
 
-            function allocateToTrucks(jobs, typeLabel) {
-                let currentBatch = [];
-                for(let i=0; i<jobs.length; i++) {
-                    currentBatch.push(jobs[i]);
-                    if(currentBatch.length === MAX_JOBS || i === jobs.length - 1) {
-                        const tId = `T-${currentTruckIndex++}`;
-                        state.trucks.push({
-                            id: tId, name: `Truck ${currentTruckIndex-1} (${typeLabel})`, 
-                            primarySector: currentBatch[0] ? currentBatch[0].sector : 'MIX',
-                            type: typeLabel,
-                            isHolding: false,
-                            deliveryIds: currentBatch.map(d => d.id)
-                        });
-                        currentBatch.forEach(d => d.truckId = tId);
-                        currentBatch = [];
+                bosJobs.sort(sortJobs);
+                spJobs.sort(sortJobs);
+                stdJobs.sort(sortJobs);
+
+                let currentTruckIndex = 1;
+
+                function allocateToTrucks(jobs, typeLabel, maxLimit) {
+                    let currentBatch = [];
+                    for(let i=0; i<jobs.length; i++) {
+                        currentBatch.push(jobs[i]);
+                        if(currentBatch.length === maxLimit || i === jobs.length - 1) {
+                            const tId = 'T-' + (currentTruckIndex++);
+                            state.trucks.push({
+                                id: tId, name: 'Truck ' + (currentTruckIndex-1) + (typeLabel !== 'STANDARD' ? ' (' + typeLabel + ')' : ''), 
+                                primarySector: currentBatch[0] ? currentBatch[0].sector : 'MIX',
+                                type: typeLabel,
+                                maxCap: maxLimit,
+                                isHolding: false,
+                                deliveryIds: currentBatch.map(d => d.id)
+                            });
+                            currentBatch.forEach(d => d.truckId = tId);
+                            currentBatch = [];
+                        }
                     }
                 }
-            }
 
-            allocateToTrucks(bosJobs, 'BOS');
-            allocateToTrucks(spJobs, 'SMALL PARCEL');
+                allocateToTrucks(bosJobs, 'BOS', 8);
+                allocateToTrucks(spJobs, 'SMALL PARCEL', 20);
+                allocateToTrucks(stdJobs, 'STANDARD', 17);
 
-            stdJobs.sort((a,b) => a.sector.localeCompare(b.sector));
-            
-            let stdBatch = [];
-            for(let i=0; i<stdJobs.length; i++) {
-                stdBatch.push(stdJobs[i]);
-                if(stdBatch.length === MAX_JOBS || i === stdJobs.length - 1) {
-                    const tId = `T-${currentTruckIndex++}`;
-                    state.trucks.push({
-                        id: tId, name: `Truck ${currentTruckIndex-1}`, 
-                        primarySector: stdBatch[0].sector,
-                        type: 'STANDARD',
-                        isHolding: false,
-                        deliveryIds: stdBatch.map(d => d.id)
-                    });
-                    stdBatch.forEach(d => d.truckId = tId);
-                    stdBatch = [];
+                // --- AI OPTIMIZER START ---
+                const shiftS = document.getElementById('shift-start').value.split(':');
+                const shiftE = document.getElementById('shift-end').value.split(':');
+                const optParams = {
+                    startH: parseInt(shiftS[0]) + (parseInt(shiftS[1]) / 60),
+                    endH: parseInt(shiftE[0]) + (parseInt(shiftE[1]) / 60),
+                    mBOS: parseInt(document.getElementById('min-bos').value) || 60,
+                    mSP: parseInt(document.getElementById('min-sp').value) || 20,
+                    mSTD: parseInt(document.getElementById('min-std').value) || 30,
+                    sliderValue: parseInt(document.getElementById('opt-slider').value) || 50
+                };
+                optParams.totalH = optParams.endH - optParams.startH;
+                optParams.timeWeight = optParams.sliderValue / 100.0;
+
+                function scoreTruck(t, p) {
+                    if (t.isHolding || t.deliveryIds.length === 0) return { red: 0, geo: 0 };
+                    let deliveries = t.deliveryIds.map(id => state.deliveries.find(d => d.id === id)).filter(Boolean);
+                    
+                    let totalWeight = 0;
+                    for(let d of deliveries) {
+                        if(d.jobType === 'BOS') totalWeight += p.mBOS;
+                        else if(d.jobType === 'SMALL_PARCEL') totalWeight += p.mSP;
+                        else totalWeight += p.mSTD;
+                    }
+                    
+                    let red = 0, distMeters = 0, currentH = p.startH, sectors = new Set(), prevSector = state.warehouseSector;
+                    
+                    for(let j=0; j<deliveries.length; j++) {
+                        let job = deliveries[j];
+                        let weight = (job.jobType === 'BOS') ? p.mBOS : (job.jobType === 'SMALL_PARCEL' ? p.mSP : p.mSTD);
+                        let jobDuration = (totalWeight > 0) ? (weight / totalWeight) * p.totalH : 0;
+                        
+                        sectors.add(job.sector);
+                        distMeters += getDist(job.sector, prevSector);
+                        prevSector = job.sector;
+                        
+                        // Check preferred time overlap
+                        if (job.rawStart > 0 && job.rawEnd > 0) {
+                            let slotStart = currentH;
+                            let slotEnd = currentH + jobDuration + 1.0; // 1hr padding
+                            if (!(slotStart <= job.rawEnd && slotEnd >= job.rawStart)) red++;
+                        }
+                        currentH += jobDuration;
+                    }
+                    
+                    // The "Geo Penalty" is: Total Meters Driven + (Penalty for each extra sector visited)
+                    let geoScore = distMeters + ((sectors.size - 1) * 50000); 
+                    return { red, geo: geoScore };
                 }
-            }
 
-            while(currentTruckIndex <= numTrucks) {
-                state.trucks.push({
-                    id: `T-${currentTruckIndex}`, name: `Truck ${currentTruckIndex}`, 
-                    primarySector: '--', type: 'STANDARD', isHolding: false, deliveryIds: []
-                });
-                currentTruckIndex++;
-            }
+                function getGlobalScore(r, g, p) {
+                    // Normalize: 1 Red Timing mismatch is now "worth" exactly 20km of driving.
+                    // This allows the slider to actually work.
+                    let timePenalty = r * 20000; 
+                    return (g * (1.0 - p.timeWeight)) + (timePenalty * p.timeWeight);
+                }
 
-            render();
+                let truckScores = state.trucks.map(t => scoreTruck(t, optParams));
+                let totalRed = truckScores.reduce((s, x) => s + x.red, 0);
+                let totalGeo = truckScores.reduce((s, x) => s + x.geo, 0);
+                let currentBestScore = getGlobalScore(totalRed, totalGeo, optParams);
+
+                // 20,000 iterations for a deep search
+                for (let iter = 0; iter < 20000; iter++) {
+                    let tIdx1 = Math.floor(Math.random() * state.trucks.length);
+                    let t1 = state.trucks[tIdx1];
+                    if (t1.isHolding || t1.deliveryIds.length === 0) continue;
+
+                    let oldT1Score = truckScores[tIdx1];
+                    let t2 = null, tIdx2 = -1, oldT2Score = {red:0, geo:0};
+                    let savedT1 = [...t1.deliveryIds], savedT2 = null;
+
+                    // Decide to swap order (80%) or move between trucks (20%)
+                    if (Math.random() < 0.8 && t1.deliveryIds.length > 1) {
+                        let i1 = Math.floor(Math.random() * t1.deliveryIds.length), i2 = Math.floor(Math.random() * t1.deliveryIds.length);
+                        [t1.deliveryIds[i1], t1.deliveryIds[i2]] = [t1.deliveryIds[i2], t1.deliveryIds[i1]];
+                    } else {
+                        let comp = state.trucks.filter(t => t.id !== t1.id && t.type === t1.type && !t.isHolding);
+                        if (comp.length > 0) {
+                            t2 = comp[Math.floor(Math.random() * comp.length)];
+                            if (t2.deliveryIds.length >= (t2.maxCap || 17)) continue; // Don't overstuff
+                            tIdx2 = state.trucks.indexOf(t2);
+                            oldT2Score = truckScores[tIdx2];
+                            savedT2 = [...t2.deliveryIds];
+                            // Move one job from t1 to t2
+                            let i1 = Math.floor(Math.random() * t1.deliveryIds.length);
+                            let jobToMove = t1.deliveryIds.splice(i1, 1)[0];
+                            t2.deliveryIds.push(jobToMove);
+                        } else continue;
+                    }
+
+                    let newT1Score = scoreTruck(t1, optParams);
+                    let newT2Score = t2 ? scoreTruck(t2, optParams) : {red:0, geo:0};
+                    let newRed = totalRed - oldT1Score.red - oldT2Score.red + newT1Score.red + newT2Score.red;
+                    let newGeo = totalGeo - oldT1Score.geo - oldT2Score.geo + newT1Score.geo + newT2Score.geo;
+                    let newScore = getGlobalScore(newRed, newGeo, optParams);
+
+                    if (newScore < currentBestScore) {
+                        currentBestScore = newScore;
+                        totalRed = newRed; totalGeo = newGeo;
+                        truckScores[tIdx1] = newT1Score;
+                        if (t2) truckScores[tIdx2] = newT2Score;
+                    } else {
+                        t1.deliveryIds = savedT1;
+                        if (t2) t2.deliveryIds = savedT2;
+                    }
+                }
+                state.trucks.forEach(t => t.deliveryIds.forEach(id => { let d = state.deliveries.find(x => x.id === id); if(d) d.truckId = t.id; }));
+                // --- AI OPTIMIZER END ---
+
+                while(currentTruckIndex <= numTrucks) {
+                    state.trucks.push({
+                        id: 'T-' + currentTruckIndex, name: 'Truck ' + currentTruckIndex, 
+                        primarySector: '--', type: 'STANDARD', maxCap: 17, isHolding: false, deliveryIds: []
+                    });
+                    currentTruckIndex++;
+                }
+
+                render();
+            } catch (err) {
+                alert("App Error: " + err.message + "\nLine: " + err.lineNumber);
+                console.error(err);
+            }
         }
 
         function render() {
-            const grid = document.getElementById('planner-grid');
-            grid.innerHTML = '';
+            try {
+                // Recalculate hidden timings and matches dynamically
+                state.trucks.forEach(truck => {
+                    if (truck.isHolding) return;
+                    let deliveries = truck.deliveryIds.map(id => state.deliveries.find(d => d.id === id)).filter(Boolean);
+                    if (deliveries.length === 0) return;
 
-            state.trucks.forEach(truck => {
-                const truckDeliveries = truck.deliveryIds.map(id => state.deliveries.find(d => d.id === id));
-                const col = document.createElement('div');
-                col.className = `truck-column ${truck.isHolding ? 'holding-area' : ''}`;
-                col.dataset.truckId = truck.id;
-                
-                let healthPercent = 100;
-                let healthColor = 'var(--success)';
-                const isOverCap = truckDeliveries.length > 17;
+                    const shiftS = document.getElementById('shift-start').value.split(':');
+                    const shiftE = document.getElementById('shift-end').value.split(':');
+                    const startH = parseInt(shiftS[0]) + (parseInt(shiftS[1]) / 60);
+                    const endH = parseInt(shiftE[0]) + (parseInt(shiftE[1]) / 60);
+                    const totalH = endH - startH;
+                    
+                    const mBOS = parseInt(document.getElementById('min-bos').value) || 60;
+                    const mSP = parseInt(document.getElementById('min-sp').value) || 20;
+                    const mSTD = parseInt(document.getElementById('min-std').value) || 30;
 
-                if (!truck.isHolding) {
-                    healthPercent = Math.max(10, 100 - (isOverCap ? 50 : 0));
-                    if (healthPercent < 80) healthColor = 'var(--warning)';
-                    if (healthPercent < 50) healthColor = 'var(--danger)';
-                }
+                    let totalWeight = deliveries.reduce((sum, d) => {
+                        if (d.jobType === 'BOS') return sum + mBOS;
+                        if (d.jobType === 'SMALL_PARCEL') return sum + mSP;
+                        return sum + mSTD;
+                    }, 0);
 
-                col.innerHTML = `
-                    <div class="truck-header">
-                        <div class="truck-info">
-                            <span class="truck-name">${truck.name}</span>
-                            <span class="truck-zone-badge">${truck.type}</span>
-                        </div>
-                        <div class="truck-meta">
-                            <span style="color: ${isOverCap ? 'red' : 'inherit'}"><i data-lucide="package" style="width:10px"></i> ${truckDeliveries.length}/17 Jobs</span>
-                        </div>
-                        ${!truck.isHolding ? `
-                            <div class="health-bar">
-                                <div style="height:100%; width:${healthPercent}%; background:${healthColor}"></div>
+                    let currentH = startH;
+                    deliveries.forEach((cJob, j) => {
+                        let weight = mSTD;
+                        if (cJob.jobType === 'BOS') weight = mBOS;
+                        if (cJob.jobType === 'SMALL_PARCEL') weight = mSP;
+                        
+                        let jobDuration = (totalWeight > 0) ? (weight / totalWeight) * totalH : 0;
+                        let slotStart = currentH;
+                        let slotEnd = currentH + jobDuration + 1.0; // Keep the +1 hour padding
+                        let slotMid = currentH + (jobDuration / 2);
+                        
+                        function formatHr(hrFloat) {
+                            let h = Math.floor(hrFloat);
+                            let m = Math.round((hrFloat - h) * 60);
+                            if(m >= 60) { m = 0; h++; }
+                            let ampm = h >= 12 ? 'pm' : 'am';
+                            let h12 = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+                            let mStr = m < 10 ? '0' + m : m;
+                            return h12 + ':' + mStr + ampm;
+                        }
+                        cJob.scheduledTime = formatHr(slotStart) + ' to ' + formatHr(currentH + jobDuration);
+                        
+                        cJob.timeMatch = true;
+                        if (cJob.rawStart > 0 && cJob.rawEnd > 0) {
+                            if (!(slotStart <= cJob.rawEnd && slotEnd >= cJob.rawStart)) {
+                                cJob.timeMatch = false;
+                            }
+                        }
+                        currentH += jobDuration;
+                    });
+                });
+
+                const grid = document.getElementById('planner-grid');
+                const hContainer = document.getElementById('holding-area-container');
+                grid.innerHTML = '';
+                hContainer.innerHTML = '';
+                hContainer.style.display = 'none';
+
+                state.trucks.forEach(truck => {
+                    const truckDeliveries = truck.deliveryIds.map(id => state.deliveries.find(d => d.id === id)).filter(Boolean);
+                    const col = document.createElement('div');
+                    col.className = `truck-column ${truck.isHolding ? 'holding-area' : ''}`;
+                    col.dataset.truckId = truck.id;
+                    
+                    let healthPercent = 100;
+                    let healthColor = 'var(--success)';
+                    const maxCap = truck.maxCap || 17; const isOverCap = truckDeliveries.length > maxCap;
+
+                    if (!truck.isHolding) {
+                        healthPercent = Math.max(10, 100 - (isOverCap ? 50 : 0));
+                        if (healthPercent < 80) healthColor = 'var(--warning)';
+                        if (healthPercent < 50) healthColor = 'var(--danger)';
+                    }
+
+                    col.innerHTML = `
+                        <div class="truck-header">
+                            <div class="truck-info">
+                                <span class="truck-name">${truck.name}</span>
+                                <span class="truck-zone-badge">${truck.type}</span>
                             </div>
-                        ` : ''}
-                    </div>
-                    <div class="cards-container ${isOverCap ? 'over-capacity' : ''}" id="container-${truck.id}">
-                        ${truckDeliveries.map(d => renderCard(d, truck)).join('')}
-                    </div>
-                `;
-                grid.appendChild(col);
-            });
+                            <div class="truck-meta">
+                                <span style="color: ${isOverCap ? 'red' : 'inherit'}"><i data-lucide="package" style="width:10px"></i> ${truckDeliveries.length}/${truck.maxCap || 17} Jobs</span>
+                            </div>
+                            ${!truck.isHolding ? `
+                                <div class="health-bar">
+                                    <div style="height:100%; width:${healthPercent}%; background:${healthColor}"></div>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div class="cards-container ${isOverCap ? 'over-capacity' : ''}" id="container-${truck.id}">
+                            ${truckDeliveries.map(d => renderCard(d, truck)).join('')}
+                        </div>
+                    `;
+                    if (truck.isHolding) {
+                        hContainer.appendChild(col);
+                        hContainer.style.display = 'flex';
+                    } else {
+                        grid.appendChild(col);
+                    }
+                });
 
-            lucide.createIcons();
-            initDragAndDrop();
-            updateStats();
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+                initDragAndDrop();
+                updateStats();
+            } catch(e) {
+                alert("Error in render: " + e.message);
+            }
         }
 
         function renderCard(d, truck) {
-            return `
-                <div class="delivery-card" draggable="true" data-id="${d.id}">
-                    <div class="card-header">
-                        <span class="customer-name">${d.customer}</span>
-                        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:2px;">
-                            <span class="time-badge ${twClass}" style="background:var(--primary);color:white;padding:2px 6px;">${d.scheduledTime || d.timeWindow}</span>
-                            ${d.preferredTime && d.preferredTime !== '09:30 - 18:30' ? `<span style="font-size:0.6rem; color:#d97706; font-weight:800;">Pref: ${d.preferredTime}</span>` : ''}
+            try {
+                if (!d) return '<div>Error: Invalid Delivery</div>';
+                let timePrefHtml = '';
+                if (d.preferredTime && d.preferredTime !== 'Anytime' && d.preferredTime !== '09:30 am to 06:30 pm') {
+                    let color = d.timeMatch === false ? 'var(--danger)' : 'var(--success)';
+                    timePrefHtml = `<span style="font-size:0.65rem; color:${color}; font-weight:800; background: ${d.timeMatch === false ? '#fee2e2' : '#d1fae5'}; padding: 2px 6px; border-radius: 4px;">${d.preferredTime}</span>`;
+                }
+
+                let itemsHtml = d.items.map(i => `<div class="preview-item"><span>${i.name}</span><strong>x${i.qty}</strong></div>`).join('');
+
+                return `
+                    <div class="delivery-card" draggable="true" data-id="${d.id}">
+                        <div class="card-header">
+                            <div style="display:flex; flex-direction:column;">
+                                <span class="customer-name">${d.customer}</span>
+                                <span style="font-size:0.65rem; color:var(--text-muted); font-weight:600;">${d.displayType || 'General'}</span>
+                            </div>
+                            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:2px;">
+                                ${timePrefHtml}
+                            </div>
+                        </div>
+                        <div class="card-address">S(${d.postal}) • ${d.address}</div>
+                        <div class="delivery-items-preview">
+                            ${itemsHtml}
+                        </div>
+                        <div class="card-footer">
+                            <div class="items-summary"><i data-lucide="box" style="width:10px"></i> ${d.items.reduce((sum, item) => sum + (parseFloat(item.qty) || 0), 0)} Quantity</div>
                         </div>
                     </div>
-                    <div class="card-address">S(${d.postal}) • ${d.address}</div>
-                    <div class="delivery-items-preview">
-                        ${d.items.map(i => `<div class="preview-item"><span>${i.name}</span><strong>x${i.qty}</strong></div>`).join('')}
-                    </div>
-                    <div class="card-footer">
-                        <div class="items-summary"><i data-lucide="box" style="width:10px"></i> ${d.items.length} items</div>
-                    </div>
-                </div>
-            `;
+                `;
+            } catch(e) {
+                return '<div>Error rendering card</div>';
+            }
         }
 
         function updateStats() {
             document.getElementById('stat-deliveries').innerText = state.deliveries.length;
-            const holdingCount = state.trucks.find(t => t.isHolding).deliveryIds.length;
+            const holdingArea = state.trucks.find(t => t.isHolding);
+            const holdingCount = holdingArea ? holdingArea.deliveryIds.length : 0;
             document.getElementById('stat-unassigned').innerText = holdingCount;
         }
 
-                function getDragAfterElement(container, y) {
-            const draggableElements = [...container.querySelectorAll('.delivery-card:not(.dragging)')];
-            return draggableElements.reduce((closest, child) => {
-                const box = child.getBoundingClientRect();
-                const offset = y - box.top - box.height / 2;
-                if (offset < 0 && offset > closest.offset) {
-                    return { offset: offset, element: child };
-                } else {
-                    return closest;
-                }
-            }, { offset: Number.NEGATIVE_INFINITY }).element;
-        }
-
-        
         function getDragAfterElement(container, y) {
             const draggableElements = [...container.querySelectorAll('.delivery-card:not(.dragging)')];
             return draggableElements.reduce((closest, child) => {
@@ -412,82 +674,130 @@
         }
 
         function initDragAndDrop() {
-            const cards = document.querySelectorAll('.delivery-card');
-            const containers = document.querySelectorAll('.cards-container');
+            try {
+                const cards = document.querySelectorAll('.delivery-card');
+                const containers = document.querySelectorAll('.cards-container');
 
-            cards.forEach(card => {
-                card.addEventListener('dragstart', (e) => {
-                    card.classList.add('dragging');
-                    e.dataTransfer.setData('text/plain', card.dataset.id);
+                cards.forEach(card => {
+                    card.addEventListener('dragstart', (e) => {
+                        card.classList.add('dragging');
+                        e.dataTransfer.setData('text/plain', card.dataset.id);
+                    });
+                    card.addEventListener('dragend', () => {
+                        card.classList.remove('dragging');
+                        document.querySelectorAll('.truck-column').forEach(c => c.classList.remove('drop-target', 'drag-over-warning', 'over-capacity'));
+                        render();
+                    });
                 });
-                card.addEventListener('dragend', () => {
-                    card.classList.remove('dragging');
-                    document.querySelectorAll('.truck-column').forEach(c => c.classList.remove('drop-target', 'drag-over-warning', 'over-capacity'));
-                    render();
-                });
-            });
 
-            containers.forEach(container => {
-                container.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    const truckCol = container.closest('.truck-column');
-                    truckCol.classList.add('drop-target');
-                    
-                    const t = state.trucks.find(tru => tru.id === truckCol.dataset.truckId);
-                    if (!t.isHolding && t.deliveryIds.length >= 17) {
-                        truckCol.classList.add('drag-over-warning');
-                    }
-                });
-                container.addEventListener('dragleave', (e) => {
-                    container.closest('.truck-column').classList.remove('drop-target', 'drag-over-warning');
-                });
-                container.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    const deliveryId = e.dataTransfer.getData('text/plain');
-                    const targetTruckId = container.closest('.truck-column').dataset.truckId;
-                    
-                    const delivery = state.deliveries.find(d => d.id === deliveryId);
-                    const oldTruck = state.trucks.find(t => t.id === delivery.truckId);
-                    const newTruck = state.trucks.find(t => t.id === targetTruckId);
+                containers.forEach(container => {
+                    container.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                        const truckCol = container.closest('.truck-column');
+                        truckCol.classList.add('drop-target');
+                        
+                        const t = state.trucks.find(tru => tru.id === truckCol.dataset.truckId);
+                        if (!t && truckCol.dataset.truckId) return;
+                        if (t && !t.isHolding && t.deliveryIds.length >= 17) {
+                            truckCol.classList.add('drag-over-warning');
+                        }
+                    });
+                    container.addEventListener('dragleave', (e) => {
+                        const truckCol = container.closest('.truck-column');
+                        if(truckCol) truckCol.classList.remove('drop-target', 'drag-over-warning');
+                    });
+                    container.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        const deliveryId = e.dataTransfer.getData('text/plain');
+                        const truckCol = container.closest('.truck-column');
+                        if(!truckCol) return;
+                        const targetTruckId = truckCol.dataset.truckId;
+                        
+                        const delivery = state.deliveries.find(d => d.id === deliveryId);
+                        if(!delivery) return;
+                        const oldTruck = state.trucks.find(t => t.id === delivery.truckId);
+                        const newTruck = state.trucks.find(t => t.id === targetTruckId);
 
-                    if (oldTruck) oldTruck.deliveryIds = oldTruck.deliveryIds.filter(id => id !== deliveryId);
-                    delivery.truckId = targetTruckId;
-                    
-                    const afterElement = getDragAfterElement(container, e.clientY);
-                    if (afterElement == null) {
-                        newTruck.deliveryIds.push(deliveryId);
-                    } else {
-                        const afterId = afterElement.dataset.id;
-                        const insertIndex = newTruck.deliveryIds.indexOf(afterId);
-                        newTruck.deliveryIds.splice(insertIndex, 0, deliveryId);
-                    }
-                    
-                    render();
+                        if (oldTruck) oldTruck.deliveryIds = oldTruck.deliveryIds.filter(id => id !== deliveryId);
+                        delivery.truckId = targetTruckId;
+                        
+                        if(newTruck) {
+                            const afterElement = getDragAfterElement(container, e.clientY);
+                            if (afterElement == null) {
+                                newTruck.deliveryIds.push(deliveryId);
+                            } else {
+                                const afterId = afterElement.dataset.id;
+                                const insertIndex = newTruck.deliveryIds.indexOf(afterId);
+                                if(insertIndex > -1) newTruck.deliveryIds.splice(insertIndex, 0, deliveryId);
+                            }
+                        }
+                        render();
+                    });
                 });
-            });
+            } catch(e) {
+                console.error("DND Error", e);
+            }
         }
 
         function exportSchedule() {
-            let csvContent = "data:text/csv;charset=utf-8,Delivery Team,Sequence,Delivery ID,Rule,Customer,Address,Postal,Preferred Time,Scheduled Time,Items\n";
-            state.trucks.forEach(t => {
-                t.deliveryIds.forEach((did, index) => {
-                    const d = state.deliveries.find(x => x.id === did);
-                    if (d) {
-                        const itemsStr = d.items.map(i => i.name + ' (x' + i.qty + ')').join(' | ').replace(/"/g, '""');
-                        const cCustomer = (d.customer || '').toString().replace(/"/g, '""');
-                        const cAddress = (d.address || '').toString().replace(/"/g, '""');
-                        csvContent += `"${t.name}",${index + 1},"${d.id}","${d.rule}","${cCustomer}","${cAddress}",${d.postal},"${d.preferredTime || ''}","${d.scheduledTime || ''}","${itemsStr}"\n`;
-                    }
+            try {
+                let csvContent = "data:text/csv;charset=utf-8,Delivery Team,Sequence,Delivery ID,Delivery Type,Customer,Address,Postal,Preferred Time,Scheduled Time,Total Qty,Items\n";
+                let exportCount = 0;
+                
+                state.trucks.forEach(t => {
+                    if (t.deliveryIds.length === 0) return;
+                    t.deliveryIds.forEach((did, index) => {
+                        const d = state.deliveries.find(x => x.id === did);
+                        if (d) {
+                            const clean = (val) => (val || '').toString().replace(/"/g, '""').replace(/\n/g, ' ').replace(/\r/g, '');
+                            const itemsStr = d.items.map(i => clean(i.name) + ' (x' + i.qty + ')').join(' | ');
+                            const totalQty = d.items.reduce((sum, i) => sum + (parseFloat(i.qty) || 0), 0);
+                            
+                            let row = [
+                                t.name,
+                                index + 1,
+                                d.docNo,
+                                d.displayType || 'General',
+                                d.customer,
+                                d.address,
+                                d.postal,
+                                d.preferredTime || '',
+                                d.scheduledTime || '',
+                                totalQty,
+                                itemsStr
+                            ].map(v => '"' + clean(v) + '"').join(',');
+                            
+                            csvContent += row + "\n";
+                            exportCount++;
+                        }
+                    });
                 });
-            });
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "optimized_schedule.csv");
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
+                
+                                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", "optimized_schedule.csv");
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                let breakdown = {};
+                state.trucks.forEach(t => {
+                    t.deliveryIds.forEach(id => {
+                        let d = state.deliveries.find(x => x.id === id);
+                        if(d) breakdown[d.displayType] = (breakdown[d.displayType] || 0) + 1;
+                    });
+                });
+                let stats = Object.entries(breakdown).map(([type, count]) => type + ": " + count).join("\n");
+                alert("Successfully exported " + exportCount + " deliveries to CSV.\n\nBreakdown:\n" + stats);
+
+            } catch (e) {
+                alert("Export Error: " + e.message);
+            }
         }
+
     </script>
 </body>
 </html>
